@@ -1,0 +1,70 @@
+import { useEffect, useRef, useState } from 'react';
+import { NavLink, Link, useLocation, useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
+import { LayoutDashboard, Users, Sparkles, ShieldCheck, Flag, FileText, MessagesSquare, Gift, Star, Receipt, Package, Banknote, Repeat, Share2, Megaphone, CalendarHeart, Scale, Bell, Settings, Tags, KeyRound, ScrollText, Activity, Menu, Search, ChevronsLeft, ChevronsRight, LogOut, Lock, ExternalLink, UserCircle, X, Eye, EyeOff } from 'lucide-react';
+import { api, qs } from '../lib/api';
+import { useAdmin } from '../context/Auth.jsx';
+import { Avatar, Modal } from './ui.jsx';
+import { label } from '../lib/fmt';
+
+function Toaster() {
+  const [items, setItems] = useState([]);
+  useEffect(() => { const f = (e) => { const id = Math.random(); setItems((x) => [...x.slice(-2), { id, ...e.detail }]); setTimeout(() => setItems((x) => x.filter((i) => i.id !== id)), 4500); }; window.addEventListener('admin:toast', f); return () => window.removeEventListener('admin:toast', f); }, []);
+  return <div className="fixed bottom-4 right-4 z-[60] space-y-2 w-80 max-w-[calc(100vw-2rem)]" aria-live="polite">{items.map((t) => <div key={t.id} className={`card !p-3 text-sm animate-rise border-l-4 ${t.tone === 'bad' ? 'border-l-bad' : 'border-l-ok'}`}>{t.message}</div>)}</div>;
+}
+
+export const NAV = [
+  ['Overview', [['/', 'Dashboard', LayoutDashboard, 'dashboard.read']]],
+  ['People', [['/users', 'Users', Users, 'users.read'], ['/creators', 'Creators', Sparkles, 'creators.read'], ['/verification', 'Verification', ShieldCheck, 'verification.read', 'verification'], ['/reports', 'Reports and Moderation', Flag, 'reports.read', 'reports']]],
+  ['Platform', [['/content', 'Content', FileText, 'content.read', 'content'], ['/communities', 'Communities', Users, 'communities.read'], ['/message-reports', 'Messages and Reports', MessagesSquare, 'reports.read'], ['/gifts', 'Gifts', Gift, 'gifts.manage'], ['/ratings', 'Ratings and Reviews', Star, 'ratings.read']]],
+  ['Revenue', [['/transactions', 'Transactions', Receipt, 'transactions.read'], ['/packages', 'Point Packages', Package, 'packages.manage'], ['/payouts', 'Creator Payouts', Banknote, 'payouts.read', 'payouts'], ['/subscriptions', 'Subscriptions', Repeat, 'subscriptions.read'], ['/referrals', 'Referrals', Share2, 'referrals.read', 'referrals'], ['/promotions', 'Promotions', Megaphone, 'promotions.read']]],
+  ['Operations', [['/meetups', 'Meetups', CalendarHeart, 'meetups.read'], ['/disputes', 'Disputes', Scale, 'meetups.read', 'disputes'], ['/announcements', 'Notifications', Bell, 'notifications.send']]],
+  ['Configuration', [['/settings', 'Platform Settings', Settings, 'settings.read'], ['/pricing', 'Pricing and Fees', Tags, 'settings.read'], ['/roles', 'Admin Roles and Permissions', KeyRound, 'admins.manage'], ['/audit', 'Audit Logs', ScrollText, 'audit_logs.read'], ['/health', 'System Health', Activity, 'health.read', 'health']]],
+];
+const ITEMS = NAV.flatMap(([, i]) => i);
+const titleFor = (p) => (ITEMS.find(([to]) => (to === '/' ? p === '/' : p.startsWith(to))) || [])[1] || 'Administration';
+
+function GlobalSearch() {
+  const [q, setQ] = useState(''); const [open, setOpen] = useState(false); const nav = useNavigate(); const box = useRef(); const [dq, setDq] = useState('');
+  useEffect(() => { const t = setTimeout(() => setDq(q.trim()), 300); return () => clearTimeout(t); }, [q]);
+  useEffect(() => { const c = (e) => !box.current?.contains(e.target) && setOpen(false); document.addEventListener('mousedown', c); return () => document.removeEventListener('mousedown', c); }, []);
+  const r = useQuery({ queryKey: ['admin', 'search', dq], queryFn: ({ signal }) => api(`/search${qs({ q: dq })}`, { signal }), enabled: dq.length >= 2, staleTime: 30_000 }); const d = r.data;
+  const go = (to) => { setOpen(false); setQ(''); nav(to); };
+  return <div ref={box} className="relative flex-1 max-w-md"><Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" /><input className="input !pl-9 !py-2" placeholder="Search users, transactions, reports…" value={q} onFocus={() => setOpen(true)} onChange={(e) => { setQ(e.target.value); setOpen(true); }} aria-label="Global search" />
+    {open && dq.length >= 2 && <div className="absolute left-0 right-0 top-full mt-1 card !p-2 z-30 max-h-80 overflow-y-auto animate-fade text-sm">{r.isPending ? <p className="p-2 text-muted">Searching…</p> : !d.users.length && !d.transactions.length && !d.reports.length ? <p className="p-2 text-muted">No results you are allowed to view.</p> : <>
+      {d.users.map((u) => <button key={u._id} className="block w-full text-left px-2 py-1.5 rounded hover:bg-card2" onClick={() => go(`/users?q=${u.username}`)}>👤 @{u.username} <span className="text-muted text-xs">{u.email}</span></button>)}
+      {d.transactions.map((t) => <button key={t._id} className="block w-full text-left px-2 py-1.5 rounded hover:bg-card2" onClick={() => go(`/transactions?q=${t.reference}`)}>🧾 {t.reference} <span className="text-muted text-xs">{label(t.type)}</span></button>)}
+      {d.reports.map((x) => <button key={x._id} className="block w-full text-left px-2 py-1.5 rounded hover:bg-card2" onClick={() => go(`/reports?q=${x._id}`)}>🚩 Report {x._id.slice(-6)} <span className="text-muted text-xs">{label(x.category)}</span></button>)}</>}</div>}</div>;
+}
+function Security({ open, onClose }) {
+  const [f, setF] = useState({}); const [msg, setMsg] = useState(''); const [show, setShow] = useState(false); const [busy, setBusy] = useState(false);
+  const go = async (e) => { e.preventDefault(); setBusy(true); setMsg(''); try { await api('/auth/password', { method: 'PUT', body: f }); setMsg('Password changed.'); setF({}); } catch (x) { setMsg(x.message); } finally { setBusy(false); } };
+  return <Modal open={open} onClose={onClose} title="Security settings"><form onSubmit={go} className="space-y-3"><input className="input" type={show ? 'text' : 'password'} placeholder="Current password" value={f.current || ''} onChange={(e) => setF({ ...f, current: e.target.value })} required /><div className="relative"><input className="input pr-10" type={show ? 'text' : 'password'} minLength={10} placeholder="New password (10+ characters)" value={f.next || ''} onChange={(e) => setF({ ...f, next: e.target.value })} required /><button type="button" className="absolute right-3 top-2.5 text-muted" onClick={() => setShow(!show)} aria-label="Show or hide password">{show ? <EyeOff size={16} /> : <Eye size={16} />}</button></div>{msg && <p role="status" className="text-sm text-ink2">{msg}</p>}<button className="btn-primary w-full" disabled={busy}>{busy ? 'Saving…' : 'Change password'}</button><p className="text-xs text-muted">Sessions expire after 8 hours. Two-factor authentication is not implemented yet.</p></form></Modal>;
+}
+
+export default function Layout({ children }) {
+  const { admin, can, logout } = useAdmin(); const loc = useLocation(); const [collapsed, setCollapsed] = useState(() => localStorage.getItem('adm-collapsed') === '1'); const [drawer, setDrawer] = useState(false); const [menu, setMenu] = useState(false); const [bell, setBell] = useState(false); const [sec, setSec] = useState(false);
+  const badges = useQuery({ queryKey: ['admin', 'badges'], queryFn: () => api('/badges'), refetchInterval: 60_000, staleTime: 30_000 }); const b = badges.data || {};
+  const platform = useQuery({ queryKey: ['platform'], queryFn: () => fetch('/api/platform').then((r) => r.json()), staleTime: 10 * 60_000 }); const pname = platform.data?.name || 'Platform';
+  useEffect(() => { setDrawer(false); setMenu(false); setBell(false); }, [loc.pathname]); useEffect(() => localStorage.setItem('adm-collapsed', collapsed ? '1' : '0'), [collapsed]);
+  const attention = ['verification', 'reports', 'payouts', 'disputes', 'content', 'referrals', 'health'].reduce((n, k) => n + (b[k] || 0), 0);
+  const Nav = ({ compact }) => <nav aria-label="Main" className="flex-1 overflow-y-auto px-2 pb-4 space-y-4">{NAV.map(([group, items]) => { const vis = items.filter((i) => can(i[3])); if (!vis.length) return null;
+    return <div key={group}>{!compact && <p className="px-3 mb-1 text-[10px] uppercase tracking-wider text-muted">{group}</p>}<ul className="space-y-0.5">{vis.map(([to, text, Icon, , bk]) => <li key={to}><NavLink to={to} end={to === '/'} title={compact ? text : undefined} className={({ isActive }) => `flex items-center gap-3 px-3 py-2 rounded-btn text-sm transition ${isActive ? 'bg-violet/15 text-violet-light font-medium' : 'text-ink2 hover:bg-card hover:text-ink'} ${compact ? 'justify-center' : ''}`}><Icon size={18} className="shrink-0" />{!compact && <span className="truncate flex-1">{text}</span>}{bk && b[bk] > 0 && <span aria-label={`${b[bk]} need attention`} className={`bg-pink text-white text-[10px] font-bold rounded-full min-w-[18px] h-[18px] grid place-items-center px-1 ${compact ? 'absolute ml-5 -mt-5' : ''}`}>{b[bk]}</span>}</NavLink></li>)}</ul></div>; })}</nav>;
+  const Brand = ({ compact }) => <div className={`flex items-center gap-2 px-4 py-4 ${compact ? 'justify-center' : ''}`}>{platform.data?.logoUrl ? <img src={platform.data.logoUrl} alt="" width="28" height="28" className="rounded-md" /> : <span className="grid place-items-center w-8 h-8 rounded-lg bg-gradient-to-br from-violet to-pink font-bold">{pname[0]}</span>}{!compact && <div className="min-w-0"><p className="font-bold leading-tight truncate">{pname}</p><p className="text-[10px] tracking-widest text-pink font-semibold">ADMINISTRATION</p></div>}</div>;
+  return <div className="min-h-screen">
+    <aside className={`hidden lg:flex fixed inset-y-0 left-0 flex-col bg-side border-r border-line z-30 transition-[width] duration-200 ${collapsed ? 'w-[68px]' : 'w-[250px]'}`}><Brand compact={collapsed} /><Nav compact={collapsed} /><button onClick={() => setCollapsed(!collapsed)} className="m-2 btn-ghost btn-sm" aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}>{collapsed ? <ChevronsRight size={16} /> : <><ChevronsLeft size={16} />Collapse</>}</button></aside>
+    {drawer && <div className="lg:hidden fixed inset-0 z-50 flex animate-fade"><div className="w-72 max-w-[85%] bg-side flex flex-col animate-slide-in"><div className="flex items-center justify-between pr-3"><Brand /><button onClick={() => setDrawer(false)} aria-label="Close menu"><X size={20} /></button></div><Nav /></div><div className="flex-1 bg-black/60" onClick={() => setDrawer(false)} /></div>}
+    <div className={`transition-[margin] duration-200 ${collapsed ? 'lg:ml-[68px]' : 'lg:ml-[250px]'}`}>
+      <header className="sticky top-0 z-20 bg-bg/90 backdrop-blur border-b border-line flex items-center gap-3 px-4 h-14">
+        <button className="lg:hidden p-1" onClick={() => setDrawer(true)} aria-label="Open menu"><Menu size={22} /></button><h2 className="font-semibold hidden sm:block whitespace-nowrap">{titleFor(loc.pathname)}</h2><GlobalSearch />
+        <div className="ml-auto flex items-center gap-2">
+          <div className="relative"><button onClick={() => { setBell(!bell); setMenu(false); }} className="relative p-2 rounded-full hover:bg-card" aria-label="Items needing attention"><Bell size={18} />{attention > 0 && <span className="absolute -top-0.5 -right-0.5 bg-pink text-[10px] font-bold rounded-full min-w-[16px] h-4 grid place-items-center px-1">{attention}</span>}</button>
+            {bell && <div className="absolute right-0 mt-2 w-72 card !p-2 text-sm animate-fade z-30"><p className="px-2 py-1 text-xs text-muted">Needs attention</p>{attention === 0 ? <p className="px-2 py-3 text-ink2">All clear 🎉</p> : [['verification', '/verification', 'Verification cases'], ['reports', '/reports', 'Open reports'], ['payouts', '/payouts', 'Payouts to review'], ['disputes', '/disputes', 'Meetup disputes'], ['content', '/content', 'Content under review'], ['referrals', '/referrals', 'Flagged referrals'], ['health', '/health', 'Failed payment events (24h)']].filter(([k]) => b[k] > 0).map(([k, to, l]) => <Link key={k} to={to} className="flex justify-between px-2 py-2 rounded hover:bg-card2">{l}<b>{b[k]}</b></Link>)}</div>}</div>
+          <div className="relative"><button onClick={() => { setMenu(!menu); setBell(false); }} className="flex items-center gap-2 pl-1 pr-2 py-1 rounded-full hover:bg-card" aria-label="Account menu"><Avatar u={{ displayName: admin.name, avatarUrl: admin.avatarUrl }} size={30} /><span className="hidden md:block text-left leading-tight"><span className="block text-sm font-medium">{admin.name}</span><span className="block text-[10px] text-muted">{label(admin.role)}</span></span></button>
+            {menu && <div className="absolute right-0 mt-2 w-56 card !p-1 text-sm animate-fade z-30"><div className="px-3 py-2 border-b border-line"><p className="font-medium truncate">{admin.name}</p><p className="text-xs text-muted truncate">{admin.email}</p><p className="text-[10px] text-pink mt-0.5">{label(admin.role)}</p></div>
+              <button className="w-full text-left px-3 py-2 rounded hover:bg-card2 flex items-center gap-2" onClick={() => { setMenu(false); setSec(true); }}><Lock size={14} />Security settings</button><div className="px-3 py-2 text-xs text-muted flex items-center gap-2"><UserCircle size={14} />My account: {admin.username}</div>
+              <a className="w-full px-3 py-2 rounded hover:bg-card2 flex items-center gap-2" href={import.meta.env.VITE_PUBLIC_URL || 'http://localhost:5173'} target="_blank" rel="noopener noreferrer"><ExternalLink size={14} />Open public platform</a>
+              <button className="w-full text-left px-3 py-2 rounded hover:bg-card2 text-bad flex items-center gap-2" onClick={logout}><LogOut size={14} />Sign out</button></div>}</div></div></header>
+      <main className="max-w-[1400px] mx-auto p-4 sm:p-6 pb-16"><div key={loc.pathname} className="animate-rise">{children}</div></main></div>
+    <Security open={sec} onClose={() => setSec(false)} /><Toaster /></div>;
+}

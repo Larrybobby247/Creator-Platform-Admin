@@ -1,0 +1,227 @@
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+@import "tailwindcss";
+
+/* ========================================
+   THEME CONFIGURATION
+======================================== */
+
+@theme {
+  /* Colors */
+  --color-bg: #101016;
+  --color-side: #14141D;
+  --color-card: #191923;
+  --color-card2: #222230;
+  --color-input: #171720;
+
+  --color-violet: #8B5CF6;
+  --color-violet-light: #A78BFA;
+  --color-pink: #EC4899;
+
+  --color-ink: #F5F5FA;
+  --color-ink2: #A1A1B5;
+  --color-muted: #77778D;
+  --color-line: #30303D;
+
+  --color-ok: #22C55E;
+  --color-warn: #F59E0B;
+  --color-bad: #EF4444;
+  --color-info: #60A5FA;
+
+  /* Typography */
+  --font-sans: 'Inter', system-ui, sans-serif;
+
+  /* Border radius */
+  --radius-btn: 12px;
+  --radius-card: 16px;
+  --radius-modal: 20px;
+
+  /* Animations */
+  --animate-fade: fade 0.18s ease-out;
+  --animate-slide-in: slideIn 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
+  --animate-rise: rise 0.25s ease-out both;
+  --animate-draw: draw 0.6s ease-out forwards;
+
+  /* Keyframes */
+  @keyframes fade {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  @keyframes slideIn {
+    from {
+      transform: translateX(30px);
+      opacity: 0;
+    }
+    to {
+      transform: translateX(0);
+      opacity: 1;
+    }
+  }
+
+  @keyframes rise {
+    from {
+      opacity: 0;
+      transform: translateY(6px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes draw {
+    to { stroke-dashoffset: 0; }
+  }
+}
+
+/* ========================================
+   BASE STYLES
+======================================== */
+
+@layer base {
+  * {
+    box-sizing: border-box;
+    scrollbar-width: thin;
+    scrollbar-color: #34344a transparent;
+  }
+
+  html {
+    color-scheme: dark;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    margin: 0;
+    min-height: 100vh;
+    @apply bg-bg text-ink font-sans antialiased;
+    font-variant-numeric: tabular-nums;
+  }
+
+  button,
+  input,
+  textarea,
+  select {
+    font: inherit;
+  }
+
+  button {
+    cursor: pointer;
+  }
+
+  button:disabled {
+    cursor: not-allowed;
+  }
+
+  input,
+  textarea,
+  select {
+    color: var(--color-ink);
+  }
+
+  input::placeholder,
+  textarea::placeholder {
+    color: var(--color-muted);
+    opacity: 1;
+  }
+
+  *:focus-visible {
+    @apply outline-2 outline-offset-2 outline-violet-light;
+  }
+
+  ::selection {
+    background: #8B5CF6;
+    color: #fff;
+  }
+
+  /* Firefox and other browser scrollbars */
+  * {
+    scrollbar-color: #34344a transparent;
+    scrollbar-width: thin;
+  }
+
+  /* Chrome, Edge and Safari */
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: #2b2b3c;
+    border: 2px solid #101016;
+    border-radius: 999px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: #8b5cf6;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+}
+
+/* ========================================
+   REUSABLE COMPONENT CLASSES
+======================================== */
+
+@layer components {
+  .card {
+    @apply rounded-card border border-line bg-card p-4 sm:p-5;
+  }
+
+  .btn {
+    @apply inline-flex min-h-[40px] items-center justify-center gap-2 rounded-btn px-4 py-2.5 text-sm font-semibold transition-colors duration-200 disabled:pointer-events-none disabled:opacity-50;
+  }
+
+  .btn-primary {
+    @apply inline-flex min-h-[40px] items-center justify-center gap-2 rounded-btn bg-violet px-4 py-2.5 text-sm font-semibold text-white transition-colors duration-200 hover:bg-violet-light disabled:pointer-events-none disabled:opacity-50;
+  }
+
+  .btn-ghost {
+    @apply inline-flex min-h-[40px] items-center justify-center gap-2 rounded-btn bg-card2 px-4 py-2.5 text-sm font-semibold text-ink transition-colors duration-200 hover:bg-line disabled:pointer-events-none disabled:opacity-50;
+  }
+
+  .btn-danger {
+    @apply inline-flex min-h-[40px] items-center justify-center gap-2 rounded-btn bg-bad px-4 py-2.5 text-sm font-semibold text-white transition-colors duration-200 hover:bg-bad/80 disabled:pointer-events-none disabled:opacity-50;
+  }
+
+  .btn-sm {
+    @apply min-h-[32px] px-3 py-1.5 text-xs;
+  }
+
+  .input {
+    @apply w-full rounded-btn border border-line bg-input px-3 py-2.5 text-sm text-ink outline-none transition-colors;
+  }
+
+  .input:focus {
+    @apply border-violet ring-2 ring-violet/20;
+  }
+
+  .input:disabled {
+    @apply cursor-not-allowed opacity-50;
+  }
+
+  .th {
+    @apply whitespace-nowrap px-3 py-2 text-left text-xs font-medium text-muted;
+  }
+
+  .td {
+    @apply px-3 py-2.5 align-middle text-sm;
+  }
+}
+
+/* ========================================
+   ACCESSIBILITY: REDUCED MOTION
+======================================== */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+}
