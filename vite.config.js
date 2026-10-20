@@ -18,14 +18,7 @@ export default defineConfig({
   build: {
     target: "es2020",
     sourcemap: false,
-    rollupOptions: {
-      output: {
-        manualChunks: {
-          react: ["react", "react-dom", "react-router-dom"],
-          query: ["@tanstack/react-query"],
-          icons: ["lucide-react"],
-        },
-      },
-    },
+    cssCodeSplit: true,
+    chunkSizeWarningLimit: 250,
   },
 });
