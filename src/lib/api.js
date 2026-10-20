@@ -1,6 +1,4 @@
-const API_BASE_URL = import.meta.env.PROD
-? "https://creator-server-hdsk.onrender.com"
-: "";
+const API_BASE_URL = "https://creator-server-hdsk.onrender.com";
 
 export async function api(
 path,
@@ -10,9 +8,11 @@ const normalizedPath = path.startsWith("/")
 ? path
 : "/${path}";
 
-const r = await fetch(
-"${API_BASE_URL}/api/admin${normalizedPath}",
-{
+const url = "${API_BASE_URL}/api/admin${normalizedPath}";
+
+console.log("API REQUEST:", url);
+
+const r = await fetch(url, {
 method,
 credentials: "include",
 signal,
@@ -20,8 +20,7 @@ headers: body
 ? { "Content-Type": "application/json" }
 : {},
 body: form || (body ? JSON.stringify(body) : undefined),
-}
-);
+});
 
 const data = await r.json().catch(() => ({}));
 
