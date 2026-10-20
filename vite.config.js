@@ -11,8 +11,8 @@ export default defineConfig({
   server: {
     port: 5174,
     proxy: {
-      "/api": "http://localhost:4000",
-      "/uploads": "http://localhost:4000",
+      "/api": "https://creator-server-hdsk.onrender.com",
+      "/uploads": "https://creator-server-hdsk.onrender.com",
     },
   },
   build: {
