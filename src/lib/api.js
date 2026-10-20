@@ -1,62 +1,43 @@
-const API_BASE_URL = "https://creator-server-hdsk.onrender.com";
+const API_BASE_URL = import.meta.env.PROD
+  ? "https://creator-server-hdsk.onrender.com"
+  : "";
 
+// Everything goes to /api/admin with the admin session cookie.
 export async function api(
   path,
   { method = "GET", body, form, signal } = {}
 ) {
-  const normalizedPath = path.startsWith("/")
-    ? path
-    : `/${path}`;
+  const normalizedPath = path.startsWith("/") ? path : `/${path}`;
 
-  // Admin API requests go directly to Render.
-  const url = new URL(
-    `/api/admin${normalizedPath}`,
-    API_BASE_URL
-  ).toString();
+  const url = `${API_BASE_URL}/api/admin${normalizedPath}`;
 
   console.log("[Admin API] Request URL:", url);
 
-  let response;
+  const r = await fetch(url, {
+    method,
+    credentials: "include",
+    signal,
+    headers: body
+      ? { "Content-Type": "application/json" }
+      : {},
+    body: form || (body ? JSON.stringify(body) : undefined),
+  });
 
-  try {
-    response = await fetch(url, {
-      method,
-      credentials: "include",
-      signal,
-      headers: {
-        ...(body !== undefined
-          ? { "Content-Type": "application/json" }
-          : {}),
-      },
-      body:
-        form ??
-        (body !== undefined ? JSON.stringify(body) : undefined),
-    });
-  } catch (error) {
-    console.error("[Admin API] Network error:", error);
-    throw error;
-  }
+  const data = await r.json().catch(() => ({}));
 
-  const data = await response.json().catch(() => ({}));
-
-  console.log("[Admin API] Response:", response.status, data);
-
-  if (!response.ok) {
-    if (
-      response.status === 401 &&
-      data.code === "UNAUTHENTICATED"
-    ) {
+  if (!r.ok) {
+    if (r.status === 401 && data.code === "UNAUTHENTICATED") {
       window.dispatchEvent(new Event("admin:unauth"));
     }
 
     throw Object.assign(
       new Error(
         data.error ||
-          data.details?.[0]?.message ||
-          `Request failed (${response.status})`
+        data.details?.[0]?.message ||
+        "Request failed"
       ),
       {
-        status: response.status,
+        status: r.status,
         code: data.code,
         data,
       }
@@ -65,3 +46,17 @@ export async function api(
 
   return data;
 }
+
+// Build query strings while ignoring empty or undefined values.
+export const qs = (o) => {
+  const p = new URLSearchParams();
+
+  Object.entries(o).forEach(([k, v]) => {
+    if (v !== undefined && v !== null && v !== "") {
+      p.set(k, v);
+    }
+  });
+
+  const s = p.toString();
+  return s ? `?${s}` : "";
+};
