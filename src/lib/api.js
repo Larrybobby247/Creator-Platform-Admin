@@ -1,4 +1,4 @@
-const API_BASE_URL = import.meta.env.PROD
+export const API_BASE_URL = import.meta.env.PROD
   ? "https://creator-server-hdsk.onrender.com"
   : "";
 
@@ -11,22 +11,29 @@ export async function api(
 
   const url = `${API_BASE_URL}/api/admin${normalizedPath}`;
 
-  console.log("[Admin API] Request URL:", url);
+  // A sleeping free-tier server can take close to a minute to wake up; never wait forever.
+  let r;
+  try {
+    r = await fetch(url, {
+      method,
+      credentials: "include",
+      signal: signal || AbortSignal.timeout(60_000),
+      headers: body
+        ? { "Content-Type": "application/json" }
+        : {},
+      body: form || (body ? JSON.stringify(body) : undefined),
+    });
+  } catch (e) {
+    if (e?.name === "AbortError") throw e; // a cancelled request is not a network problem
+    throw Object.assign(new Error(e?.name === "TimeoutError" ? "The server took too long to respond. It may be waking up: try again in a moment." : "Cannot reach the server. Check your connection and try again."), { status: 0, code: "NETWORK" });
+  }
 
-  const r = await fetch(url, {
-    method,
-    credentials: "include",
-    signal,
-    headers: body
-      ? { "Content-Type": "application/json" }
-      : {},
-    body: form || (body ? JSON.stringify(body) : undefined),
-  });
 
   const data = await r.json().catch(() => ({}));
 
   if (!r.ok) {
-    if (r.status === 401 && data.code === "UNAUTHENTICATED") {
+    // The sign-in check itself (/auth/*) handles its own 401; only an expired session on a normal page should kick you out.
+    if (r.status === 401 && data.code === "UNAUTHENTICATED" && !normalizedPath.startsWith("/auth/")) {
       window.dispatchEvent(new Event("admin:unauth"));
     }
 
