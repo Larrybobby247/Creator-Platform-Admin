@@ -1,4 +1,4 @@
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAdmin } from './context/Auth.jsx';
 import Layout from './components/Layout.jsx';
@@ -15,9 +15,15 @@ const Fallback = () => <div className="space-y-3" aria-busy="true"><Skeleton cla
 
 // Hiding a menu item is cosmetic; every API route enforces the same permission on the server.
 function Guard({ perm, children }) { const { can } = useAdmin(); return can(perm) ? children : <div className="card text-center py-12"><h1 className="text-xl font-bold">No access</h1><p className="text-ink2 text-sm mt-1">Your role does not include permission <code>{perm}</code>.</p></div>; }
+function Boot({ error, retry }) {
+  const [slow, setSlow] = useState(false); useEffect(() => { const t = setTimeout(() => setSlow(true), 5000); return () => clearTimeout(t); }, []);
+  return <div className="min-h-screen grid place-items-center p-4 text-center"><div className="space-y-3 max-w-sm">
+    {error ? <><p className="text-lg font-semibold">Cannot reach the server</p><p className="text-ink2 text-sm">{error.message}</p><button className="btn-primary" onClick={retry}>Try again</button></>
+      : <><div className="w-8 h-8 mx-auto rounded-full border-2 border-violet border-t-transparent animate-spin" /><p className="text-ink2">Loading…</p>{slow && <p className="text-xs text-muted">The server is waking up. This can take up to a minute the first time.</p>}</>}</div></div>;
+}
 export default function App() {
-  const { admin, loading } = useAdmin();
-  if (loading) return <div className="min-h-screen grid place-items-center text-ink2">Loading…</div>;
+  const { admin, loading, error, retry } = useAdmin();
+  if (loading || error) return <Boot error={error} retry={retry} />;
   if (!admin) return <Login />;
   const g = (perm, el) => <Guard perm={perm}>{el}</Guard>;
   return <Layout><Suspense fallback={<Fallback />}><Routes>
